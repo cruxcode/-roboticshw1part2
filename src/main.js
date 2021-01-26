@@ -9,6 +9,7 @@ const startX = document.getElementById("startx");
 const startY = document.getElementById("starty");
 const goalX = document.getElementById("goalx");
 const goalY = document.getElementById("goaly");
+const bugType = document.getElementById("bugType");
 /**
  * 
  * @param {number} width 
@@ -135,11 +136,21 @@ setupPlayground().then(() => {
 		setupPlayground().then(() => {
 			drawPoint(buglayer, new Point(startX.value, startY.value), 2, "green");
 			drawPoint(buglayer, new Point(goalX.value, goalY.value), 2, "red");
-			let bug = new Bug(new Bug1Strategy());
-			let sensor = new TactileSensor(bug, 1);
-			bug.mount(sensor);
-			bug.set(new Point(parseInt(startX.value), -1*parseInt(startY.value)));
-			bug.find(new Point(parseInt(goalX.value), -1*parseInt(goalY.value)));
+			console.log(bugType.value)
+			if(bugType.value == "Bug 1"){
+				let bug = new Bug(new Bug1Strategy());
+				let sensor = new TactileSensor(bug, 1);
+				bug.mount(sensor);
+				bug.set(new Point(parseInt(startX.value), -1*parseInt(startY.value)));
+				bug.find(new Point(parseInt(goalX.value), -1*parseInt(goalY.value)));
+			} else if(bugType.value == "Bug 2"){
+				let bug = new Bug(new Bug2Strategy());
+				let sensor = new TactileSensor(bug, 1);
+				bug.mount(sensor);
+				bug.set(new Point(parseInt(startX.value), -1*parseInt(startY.value)));
+				bug.find(new Point(parseInt(goalX.value), -1*parseInt(goalY.value)));
+			}
+
 		});
 	}
 	getSnapshotBtn.onclick = () => {
@@ -611,7 +622,258 @@ class Bug2Strategy extends BugStrategy {
 	 * @returns {Point[]} 
 	 */
 	find(bug, gP) {
+		let num = 0;
+		const line = getLineFromPoints(new Point(bug.x, bug.y), gP)
+		const step = bug.x - gP.x <= 0 ? 1 : -1;
+		while (num < 1000) {
+			let point = this.findBoxOnShortestPath(bug, line, step);
+			if (point.x == gP.x && point.y == gP.y) {
+				bug.setMove(point);
+				console.log("found goal");
+				break;
+			}
+			if(num == 999){
+				console.log("reached limit of iteration", bug.trajectory)
+				break;
+			}
+			if(isCollision(point)){
+				point = this.circumnavigate(bug, point, line);
+				bug.setMove(point)
+				console.log(bug, point);
+				console.log(line, step)
+			} else {
+				bug.setMove(point);
+			}
+			++num;
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {Point} hit_point
+	 * @param {Line} line
+	 * @returns {Point} 
+	 */
+	circumnavigate(bug, hit_point, line){
+		let point = new Point(hit_point.x, hit_point.y);
+		let init_point = new Point(bug.x, bug.y);
+		let dir;
+		let checks = 0;
+		let min_dist = -1;
+		// find initial dir and second point
+		while(isCollision(point)){
+			let obj = this.findBoxOnRight(bug, point);
+			point = obj.point;
+			dir = obj.dir;
+			++checks;
+			if(checks == 8){
+				console.log("surrounded, cant find right point")
+			}
+		}
+		bug.setMove(point);
+		// loop until we reach back at the init_point
+		while(point.x != init_point.x || point.y != init_point.y){
+			point = this.findBoxInDir(bug, dir);
+			if(isCollision(point)){
+				let checks = 0;
+				while(isCollision(point)){
+					let obj = this.findBoxOnRight(bug, point);
+					point = obj.point;
+					dir = obj.dir;
+					++checks;
+					if(checks == 8){
+						console.log("surrounded, cant find right point")
+					}
+				}
+			} else {
+				let obj = this.findClosestToPerimeter(bug, dir);
+				point = obj.point;
+				dir = obj.dir;
+			}
+			bug.setMove(point);
+			if(linePointDistance(line, point) < 1){
+				return point;
+			}
+		}
+	}
 
+	/**
+	 * @param {Bug} bug
+	 * @param {Point} gP 
+	 * @returns {Point} 
+	 */
+	findBoxOnShortestPath(bug, line, step) {
+		let x = bug.x, y = bug.y;
+		let sensor = bug.sensor;
+		let imgData = sensor.getSnapshot();
+		let height = imgData.height, width = imgData.width;
+		let min_dist = -1;
+		let min_point;
+		let r = Math.floor(width/2);
+		for (; r < width && r >= 0; r = r + step) {
+			for (let c = 0; c < height; c++) {
+				if(r  == sensor.radius && c == sensor.radius){
+					continue;
+				}
+				if(bug.trajectory[x - sensor.radius + r] && bug.trajectory[x - sensor.radius + r].includes(y + sensor.radius - c)){
+					continue;
+				}
+				let actual_p = new Point(x - sensor.radius + r, y + sensor.radius - c);
+				let dist = linePointDistance(line, actual_p);
+				if ((min_dist == -1) || (dist < min_dist)) {
+					min_dist = dist;
+					min_point = actual_p;
+
+				}
+			}
+		}
+		return min_point;
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {Point} new_point
+	 * @returns {{point: Point, dir: number}}
+	 */
+	findBoxOnRight(bug, new_point){
+		if(bug.x - 1 == new_point.x && bug.y + 1 == new_point.y){
+			return {point: new Point(bug.x, bug.y + 1), dir: 1};
+		}
+		if(bug.x == new_point.x && bug.y + 1 == new_point.y){
+			return {point: new Point(bug.x + 1, bug.y + 1), dir: 2};
+		}
+		if(bug.x + 1 == new_point.x && bug.y + 1 == new_point.y){
+			return {point: new Point(bug.x + 1, bug.y), dir: 3};
+		}
+		if(bug.x + 1 == new_point.x && bug.y == new_point.y){
+			return {point: new Point(bug.x + 1, bug.y - 1), dir: 4};
+		}
+		if(bug.x + 1 == new_point.x && bug.y - 1 == new_point.y){
+			return {point: new Point(bug.x, bug.y - 1), dir: 5};
+		}
+		if(bug.x == new_point.x && bug.y - 1 == new_point.y){
+			return {point: new Point(bug.x - 1, bug.y - 1), dir: 6};
+		}
+		if(bug.x - 1 == new_point.x && bug.y - 1 == new_point.y){
+			return {point: new Point(bug.x - 1, bug.y), dir: 7};
+		}
+		if(bug.x - 1 == new_point.x && bug.y == new_point.y){
+			return {point: new Point(bug.x - 1, bug.y + 1), dir: 0};
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {number} curr_dir
+	 * @returns {{point: Point, dir: number}}
+	 */
+	findBoxOnRightByDir(bug, curr_dir){
+		if(curr_dir == 0){
+			return {point: new Point(bug.x, bug.y + 1), dir: 1};
+		}
+		if(curr_dir == 1){
+			return {point: new Point(bug.x + 1, bug.y + 1), dir: 2};
+		}
+		if(curr_dir == 2){
+			return {point: new Point(bug.x + 1, bug.y), dir: 3};
+		}
+		if(curr_dir == 3){
+			return {point: new Point(bug.x + 1, bug.y - 1), dir: 4};
+		}
+		if(curr_dir == 4){
+			return {point: new Point(bug.x, bug.y - 1), dir: 5};
+		}
+		if(curr_dir == 5){
+			return {point: new Point(bug.x - 1, bug.y - 1), dir: 6};
+		}
+		if(curr_dir == 6){
+			return {point: new Point(bug.x - 1, bug.y), dir: 7};
+		}
+		if(curr_dir == 7){
+			return {point: new Point(bug.x - 1, bug.y + 1), dir: 0};
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {number} curr_dir 
+	 */
+	findBoxInDir(bug, curr_dir){
+		if(curr_dir == 0){
+			return new Point(bug.x - 1, bug.y + 1);
+		}
+		if(curr_dir == 1){
+			return new Point(bug.x, bug.y + 1);
+		}
+		if(curr_dir == 2){
+			return new Point(bug.x + 1, bug.y + 1);
+		}
+		if(curr_dir == 3){
+			return new Point(bug.x + 1, bug.y)
+		}
+		if(curr_dir == 4){
+			return new Point(bug.x + 1, bug.y - 1)
+		}
+		if(curr_dir == 5){
+			return new Point(bug.x, bug.y - 1)
+		}
+		if(curr_dir == 6){
+			return new Point(bug.x - 1, bug.y - 1)
+		}
+		if(curr_dir == 7){
+			return new Point(bug.x - 1, bug.y)
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {Point} point
+	 * @returns {{point: Point, dir: number}} 
+	 */
+	findClosestToPerimeter(bug, dir){
+		let checks = 0;
+		while(checks < 8){
+			let obj = this.findBoxOnLeft(bug, dir);
+			let point = obj.point;
+			if(isCollision(point)){
+				return {point: this.findBoxInDir(bug, dir), dir};
+			}
+			dir = obj.dir;
+			++checks;
+		}
+		console.log("something went wrong");
+	}
+	/**
+	 * 
+	 * @param {Point} point 
+	 * @param {number} curr_dir
+	 * @returns {{point: Point, dir: number}}
+	 */
+	findBoxOnLeft(bug, curr_dir){
+		if(curr_dir == 0){
+			return {point: new Point(bug.x - 1, bug.y), dir: 7};
+		}
+		if(curr_dir == 1){
+			return {point: new Point(bug.x - 1, bug.y + 1), dir: 0};
+		}
+		if(curr_dir == 2){
+			return {point: new Point(bug.x, bug.y + 1), dir: 1};
+		}
+		if(curr_dir == 3){
+			return {point: new Point(bug.x + 1, bug.y + 1), dir: 2};
+		}
+		if(curr_dir == 4){
+			return {point: new Point(bug.x + 1, bug.y), dir: 3};
+		}
+		if(curr_dir == 5){
+			return {point: new Point(bug.x + 1, bug.y - 1), dir: 4};
+		}
+		if(curr_dir == 6){
+			return {point: new Point(bug.x, bug.y - 1), dir: 5};
+		}
+		if(curr_dir == 7){
+			return {point: new Point(bug.x - 1, bug.y - 1), dir: 6};
+		}
 	}
 }
 
