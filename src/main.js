@@ -220,6 +220,18 @@ class Bug {
 	}
 	/**
 	 * 
+	 * @param {Point} p 
+	 */
+	repeatBackUntilPoint(p){
+		for(let i = this.trajectory_arr.length - 2; i >= 0; --i){
+			this.set(new Point(this.trajectory_arr[i].x, this.trajectory_arr[i].y));
+			if(this.trajectory_arr[i].x == p.x && this.trajectory_arr[i].y == p.y){
+				break;
+			}
+		}
+	}
+	/**
+	 * 
 	 * @param {Sensor} sensor 
 	 */
 	mount(sensor) {
@@ -256,8 +268,8 @@ class Bug1Strategy extends BugStrategy {
 	 */
 	find(bug, gP) {
 		let num = 0;
-		const line = getLineFromPoints(new Point(bug.x, bug.y), gP)
-		const step = bug.x - gP.x <= 0 ? 1 : -1;
+		let line = getLineFromPoints(new Point(bug.x, bug.y), gP)
+		let step = bug.x - gP.x <= 0 ? 1 : -1;
 		while (num < 1000) {
 			let point = this.findBoxOnShortestPath(bug, line, step);
 			if (point.x == gP.x && point.y == gP.y) {
@@ -270,35 +282,44 @@ class Bug1Strategy extends BugStrategy {
 				break;
 			}
 			if(isCollision(point)){
-				this.circumnavigate(bug, point);
-				break;
+				let min_point = this.circumnavigate(bug, point, gP);
+				bug.repeatBackUntilPoint(min_point);
+				console.log(bug, min_point);
+				line = getLineFromPoints(new Point(bug.x, bug.y), gP);
+				step = bug.x - gP.x <= 0 ? 1 : -1;
+				console.log(line, step)
+			} else {
+				bug.setMove(point);
 			}
-			bug.setMove(point);
 			++num;
 		}
 	}
 	/**
 	 * 
 	 * @param {Bug} bug 
-	 * @param {Point} hit_point 
+	 * @param {Point} hit_point
+	 * @param {Point} gP
+	 * @returns {Point} 
 	 */
-	circumnavigate(bug, hit_point){
+	circumnavigate(bug, hit_point, gP){
 		let point = new Point(hit_point.x, hit_point.y);
 		let init_point = new Point(bug.x, bug.y);
 		let dir;
 		let checks = 0;
+		let min_dist = -1;
+		let min_point;
 		// find initial dir and second point
 		while(isCollision(point)){
 			let obj = this.findBoxOnRight(bug, point);
 			point = obj.point;
 			dir = obj.dir;
-			console.log(point, dir)
 			++checks;
 			if(checks == 8){
 				console.log("surrounded, cant find right point")
 			}
 		}
 		bug.setMove(point);
+		min_dist = getDistance(point, gP);
 		// loop until we reach back at the init_point
 		while(point.x != init_point.x || point.y != init_point.y){
 			point = this.findBoxInDir(bug, dir);
@@ -319,7 +340,12 @@ class Bug1Strategy extends BugStrategy {
 				dir = obj.dir;
 			}
 			bug.setMove(point);
+			if(min_dist > getDistance(point, gP)){
+				min_dist = getDistance(point, gP);
+				min_point = point;
+			}
 		}
+		return min_point;
 	}
 
 	/**
@@ -557,6 +583,7 @@ function connectPoints(points){
 		ctx.moveTo(points[i - 1].x, -1*points[i - 1].y);
 		ctx.lineTo(points[i].x, -1*points[i].y);
 	}
+	ctx.strokeStyle = "orange";
 	ctx.stroke();
 }
 
