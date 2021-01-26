@@ -158,7 +158,7 @@ setupPlayground().then(() => {
 		bug.set(new Point(parseInt(startX.value), parseInt(startY.value)));
 		let sensor = new Sensor(bug, 100);
 		bug.mount(sensor);
-		let imgData = sensor.getSnapshot();
+		let imgData = sensor.getVisisbleArea();
 		var canvas = document.createElement('canvas'),
 			ctx = canvas.getContext('2d');
 		canvas.width = sensor.radius * 2;
@@ -911,8 +911,8 @@ class Sensor {
 		let height = this.radius * 2 + 1;
 
 		let imgData = playground.getContext("2d").getImageData(x - this.radius, y - this.radius, width, height);
-		for (let r = 0; r < width; r++) {
-			for (let c = 0; c < height; c++) {
+		for (let r = 0; r < height; r++) {
+			for (let c = 0; c < width; c++) {
 				if (Math.sqrt(Math.pow(this.radius - r, 2) + Math.pow(this.radius - c, 2)) > this.radius) {
 					// console.log("yup")
 					let ind = (width * r + c) * 4;
@@ -927,6 +927,66 @@ class Sensor {
 	}
 	setRadius(radius) {
 		this.radius = radius;
+	}
+	getVisisbleArea(){
+		let imgData = this.getSnapshot();
+		const width = imgData.width;
+		const height = imgData.height;
+		for (let r = 0; r < height; r++) {
+			let first = false;
+			for (let c = Math.floor(width/2) + 1; c < width; c++) {
+				let ind = (width * r + c) * 4;
+				if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+					first = true;
+				} else {
+					imgData.data[ind] = 128;
+					imgData.data[ind + 1] = 128;
+					imgData.data[ind + 2] = 128;
+					imgData.data[ind + 3] = 255;
+				}
+			}
+		}
+		for (let r = 0; r < height; r++) {
+			let first = false;
+			for (let c = Math.floor(width/2) - 1; c >= 0; c--) {
+				let ind = (width * r + c) * 4;
+				if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+					first = true;
+				} else {
+					imgData.data[ind] = 128;
+					imgData.data[ind + 1] = 128;
+					imgData.data[ind + 2] = 128;
+					imgData.data[ind + 3] = 255;
+				}
+			}
+		}
+		let c = Math.floor(width/2);
+		let first = false;
+		for (let r = Math.floor(height/2) - 1; r >= 0; r--) {
+			let ind = (width * r + c) * 4;
+			if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+				first = true;
+			} else {
+				imgData.data[ind] = 128;
+				imgData.data[ind + 1] = 128;
+				imgData.data[ind + 2] = 128;
+				imgData.data[ind + 3] = 255;
+			}
+		}
+		first = false;
+		for (let r = Math.floor(height/2) + 1; r < height; r++) {
+			let ind = (width * r + c) * 4;
+			if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+				console.log("sound first")
+				first = true;
+			} else {
+				imgData.data[ind] = 128;
+				imgData.data[ind + 1] = 128;
+				imgData.data[ind + 2] = 128;
+				imgData.data[ind + 3] = 255;
+			}
+		}
+		return imgData;
 	}
 }
 /**
