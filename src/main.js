@@ -269,10 +269,59 @@ class Bug1Strategy extends BugStrategy {
 				console.log("reached limit of iteration", bug.trajectory)
 				break;
 			}
+			if(isCollision(point)){
+				this.circumnavigate(bug, point);
+				break;
+			}
 			bug.setMove(point);
 			++num;
 		}
 	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {Point} hit_point 
+	 */
+	circumnavigate(bug, hit_point){
+		let point = new Point(hit_point.x, hit_point.y);
+		let init_point = new Point(bug.x, bug.y);
+		let dir;
+		let checks = 0;
+		// find initial dir and second point
+		while(isCollision(point)){
+			let obj = this.findBoxOnRight(bug, point);
+			point = obj.point;
+			dir = obj.dir;
+			console.log(point, dir)
+			++checks;
+			if(checks == 8){
+				console.log("surrounded, cant find right point")
+			}
+		}
+		bug.setMove(point);
+		// loop until we reach back at the init_point
+		while(point.x != init_point.x || point.y != init_point.y){
+			point = this.findBoxInDir(bug, dir);
+			if(isCollision(point)){
+				let checks = 0;
+				while(isCollision(point)){
+					let obj = this.findBoxOnRight(bug, point);
+					point = obj.point;
+					dir = obj.dir;
+					++checks;
+					if(checks == 8){
+						console.log("surrounded, cant find right point")
+					}
+				}
+			} else {
+				let obj = this.findClosestToPerimeter(bug, dir);
+				point = obj.point;
+				dir = obj.dir;
+			}
+			bug.setMove(point);
+		}
+	}
+
 	/**
 	 * @param {Bug} bug
 	 * @param {Point} gP 
@@ -304,6 +353,152 @@ class Bug1Strategy extends BugStrategy {
 			}
 		}
 		return min_point;
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {Point} new_point
+	 * @returns {{point: Point, dir: number}}
+	 */
+	findBoxOnRight(bug, new_point){
+		if(bug.x - 1 == new_point.x && bug.y + 1 == new_point.y){
+			return {point: new Point(bug.x, bug.y + 1), dir: 1};
+		}
+		if(bug.x == new_point.x && bug.y + 1 == new_point.y){
+			return {point: new Point(bug.x + 1, bug.y + 1), dir: 2};
+		}
+		if(bug.x + 1 == new_point.x && bug.y + 1 == new_point.y){
+			return {point: new Point(bug.x + 1, bug.y), dir: 3};
+		}
+		if(bug.x + 1 == new_point.x && bug.y == new_point.y){
+			return {point: new Point(bug.x + 1, bug.y - 1), dir: 4};
+		}
+		if(bug.x + 1 == new_point.x && bug.y - 1 == new_point.y){
+			return {point: new Point(bug.x, bug.y - 1), dir: 5};
+		}
+		if(bug.x == new_point.x && bug.y - 1 == new_point.y){
+			return {point: new Point(bug.x - 1, bug.y - 1), dir: 6};
+		}
+		if(bug.x - 1 == new_point.x && bug.y - 1 == new_point.y){
+			return {point: new Point(bug.x - 1, bug.y), dir: 7};
+		}
+		if(bug.x - 1 == new_point.x && bug.y == new_point.y){
+			return {point: new Point(bug.x - 1, bug.y + 1), dir: 0};
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {number} curr_dir
+	 * @returns {{point: Point, dir: number}}
+	 */
+	findBoxOnRightByDir(bug, curr_dir){
+		if(curr_dir == 0){
+			return {point: new Point(bug.x, bug.y + 1), dir: 1};
+		}
+		if(curr_dir == 1){
+			return {point: new Point(bug.x + 1, bug.y + 1), dir: 2};
+		}
+		if(curr_dir == 2){
+			return {point: new Point(bug.x + 1, bug.y), dir: 3};
+		}
+		if(curr_dir == 3){
+			return {point: new Point(bug.x + 1, bug.y - 1), dir: 4};
+		}
+		if(curr_dir == 4){
+			return {point: new Point(bug.x, bug.y - 1), dir: 5};
+		}
+		if(curr_dir == 5){
+			return {point: new Point(bug.x - 1, bug.y - 1), dir: 6};
+		}
+		if(curr_dir == 6){
+			return {point: new Point(bug.x - 1, bug.y), dir: 7};
+		}
+		if(curr_dir == 7){
+			return {point: new Point(bug.x - 1, bug.y + 1), dir: 0};
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {number} curr_dir 
+	 */
+	findBoxInDir(bug, curr_dir){
+		if(curr_dir == 0){
+			return new Point(bug.x - 1, bug.y + 1);
+		}
+		if(curr_dir == 1){
+			return new Point(bug.x, bug.y + 1);
+		}
+		if(curr_dir == 2){
+			return new Point(bug.x + 1, bug.y + 1);
+		}
+		if(curr_dir == 3){
+			return new Point(bug.x + 1, bug.y)
+		}
+		if(curr_dir == 4){
+			return new Point(bug.x + 1, bug.y - 1)
+		}
+		if(curr_dir == 5){
+			return new Point(bug.x, bug.y - 1)
+		}
+		if(curr_dir == 6){
+			return new Point(bug.x - 1, bug.y - 1)
+		}
+		if(curr_dir == 7){
+			return new Point(bug.x - 1, bug.y)
+		}
+	}
+	/**
+	 * 
+	 * @param {Bug} bug 
+	 * @param {Point} point
+	 * @returns {{point: Point, dir: number}} 
+	 */
+	findClosestToPerimeter(bug, dir){
+		let checks = 0;
+		while(checks < 8){
+			let obj = this.findBoxOnLeft(bug, dir);
+			let point = obj.point;
+			if(isCollision(point)){
+				return {point: this.findBoxInDir(bug, dir), dir};
+			}
+			dir = obj.dir;
+			++checks;
+		}
+		console.log("something went wrong");
+	}
+	/**
+	 * 
+	 * @param {Point} point 
+	 * @param {number} curr_dir
+	 * @returns {{point: Point, dir: number}}
+	 */
+	findBoxOnLeft(bug, curr_dir){
+		if(curr_dir == 0){
+			return {point: new Point(bug.x - 1, bug.y), dir: 7};
+		}
+		if(curr_dir == 1){
+			return {point: new Point(bug.x - 1, bug.y + 1), dir: 0};
+		}
+		if(curr_dir == 2){
+			return {point: new Point(bug.x, bug.y + 1), dir: 1};
+		}
+		if(curr_dir == 3){
+			return {point: new Point(bug.x + 1, bug.y + 1), dir: 2};
+		}
+		if(curr_dir == 4){
+			return {point: new Point(bug.x + 1, bug.y), dir: 3};
+		}
+		if(curr_dir == 5){
+			return {point: new Point(bug.x + 1, bug.y - 1), dir: 4};
+		}
+		if(curr_dir == 6){
+			return {point: new Point(bug.x, bug.y - 1), dir: 5};
+		}
+		if(curr_dir == 7){
+			return {point: new Point(bug.x - 1, bug.y - 1), dir: 6};
+		}
 	}
 }
 
@@ -363,6 +558,20 @@ function connectPoints(points){
 		ctx.lineTo(points[i].x, -1*points[i].y);
 	}
 	ctx.stroke();
+}
+
+/**
+ * 
+ * @param {Point} p
+ * @returns {boolean} 
+ */
+function isCollision(p){
+	let data = playground.getContext("2d").getImageData(p.x, -1*p.y, 1, 1).data;
+	// opacity greater than 0 implies presence of some object
+	if(data[3] > 0){
+		return true;
+	}
+	return false;
 }
 
 class Bug2Strategy extends BugStrategy {
