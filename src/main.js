@@ -986,7 +986,66 @@ class Sensor {
 				imgData.data[ind + 3] = 255;
 			}
 		}
+		let edges = this.findEdges(imgData);
+		console.log(edges)
+		for(let i = 0; i < edges.length; i++){
+			let ind = imgData[edges[i]];
+			imgData.data[ind] = 255;
+			imgData.data[ind + 1] = 0;
+			imgData.data[ind + 2] = 0;
+			imgData.data[ind + 3] = 255;
+		}
 		return imgData;
+	}
+
+	findEdges(imgData){
+		const width = imgData.width;
+		const height = imgData.height;
+		let points = [];
+		for(let r = 1; r < height-1; r++){
+			for(let c = 1; c < width-1; c++){
+				let ind = (width * r + c) * 4;
+				if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+					let count = 0;
+					ind = (width * (r - 1) + c - 1)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r - 1) + c)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r - 1) + c + 1)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r) + c + 1)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r + 1) + c + 1)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r + 1) + c)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r + 1) + c - 1)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					ind = (width * (r) + c - 1)*4;
+					if(imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
+						++count;
+					}
+					if(count < 2){
+						points.push((width * r + c) * 4);
+					}
+				}
+			}
+		}
+		return points;
 	}
 }
 /**
