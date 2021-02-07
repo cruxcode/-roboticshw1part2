@@ -33,11 +33,16 @@ function setPlaygroundSize(width, height) {
 	// drawPoint(buglayer, new Point(10, 10), 5, "red");
 }
 
+var initalSetupDone = false;
 /**
  * @returns {Promise<void>}
  */
 function setupPlayground() {
 	return new Promise((res, rej) => {
+		if(initalSetupDone){
+			res();
+			return;
+		}
 		let ctx = playground.getContext("2d");
 		let img = new Image();
 		img.onload = () => {
@@ -46,6 +51,7 @@ function setupPlayground() {
 			res();
 		}
 		img.src = "./assets/robotics_hw1_part2.png";
+		initalSetupDone = true;
 	});
 }
 
@@ -134,8 +140,8 @@ setupPlayground().then(() => {
 	goalY.value = 65;
 	findPathBtn.onclick = () => {
 		setupPlayground().then(() => {
-			drawPoint(buglayer, new Point(startX.value, startY.value), 2, "green");
-			drawPoint(buglayer, new Point(goalX.value, goalY.value), 2, "red");
+			drawPoint(buglayer, new Point(startX.value, startY.value), 3.5, "green");
+			drawPoint(buglayer, new Point(goalX.value, goalY.value), 3.5, "red");
 			console.log(bugType.value)
 			if(bugType.value == "Bug 1"){
 				let bug = new Bug(new Bug1Strategy());
@@ -932,70 +938,91 @@ class Sensor {
 		let imgData = this.getSnapshot();
 		const width = imgData.width;
 		const height = imgData.height;
-		for (let r = 0; r < height; r++) {
-			let first = false;
-			for (let c = Math.floor(width/2) + 1; c < width; c++) {
-				let ind = (width * r + c) * 4;
-				if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
-					first = true;
-				} else {
-					imgData.data[ind] = 128;
-					imgData.data[ind + 1] = 128;
-					imgData.data[ind + 2] = 128;
-					imgData.data[ind + 3] = 255;
+		let res = [];
+		let temp_bug;
+		let point, collided;
+		console.log(this.bug)
+		for(let d = 0; d < 360; d++){
+			point = undefined;
+			collided = false;
+			temp_bug = new Bug(new Bug1Strategy());
+			temp_bug.mount(new Sensor(temp_bug, this.radius));
+			temp_bug.x = this.bug.x;
+			temp_bug.y = this.bug.y;
+			let count = 0;
+			const line = lineFromSlopeAndPoint(Math.tan(d*Math.PI/180), new Point(this.bug.x, this.bug.y));
+			console.log(this.radius);
+			// step = 1 until find a black box
+			while(count < this.radius){
+				point = this.findBoxOnShortestPath(temp_bug, line, 1);
+				temp_bug.set(point);
+				if(isCollision(point)){
+					collided = true;
+					break;
+				}
+				++count;
+			}
+			// add point to res
+			if(collided){
+				console.log("collided")
+				res.push(new Point(point.x, point.y));
+			}
+			point = undefined;
+			collided = false;
+			temp_bug = new Bug(new Bug1Strategy());
+			temp_bug.mount(new Sensor(temp_bug, this.radius));
+			temp_bug.x = this.bug.x;
+			temp_bug.y = this.bug.y;
+			count = 0;
+			// step = -1
+			while(count < this.radius){
+				point = this.findBoxOnShortestPath(temp_bug, line, -1);
+				temp_bug.set(point);
+				if(isCollision(point)){
+					collided = true;
+					break;
+				}
+				++count;
+			}
+			// add point to res
+			if(collided)
+				res.push(new Point(point.x, point.y));
+		}
+		console.log(res);
+	}
+
+		/**
+	 * @param {Bug} bug
+	 * @param {Line} line
+	 * @param {number} step
+	 * @returns {Point}  
+	 */
+	findBoxOnShortestPath(bug, line, step) {
+		let x = bug.x, y = bug.y;
+		let sensor = bug.sensor;
+		let imgData = sensor.getSnapshot();
+		let height = imgData.height, width = imgData.width;
+		let min_dist = -1;
+		let min_point;
+		let r = Math.floor(width/2);
+		for (; r < width && r >= 0; r = r + step) {
+			for (let c = 0; c < height; c++) {
+				if(r  == sensor.radius && c == sensor.radius){
+					continue;
+				}
+				if(bug.trajectory[x - sensor.radius + r] && bug.trajectory[x - sensor.radius + r].includes(y + sensor.radius - c)){
+					continue;
+				}
+				let actual_p = new Point(x - sensor.radius + r, y + sensor.radius - c);
+				let dist = linePointDistance(line, actual_p);
+				if ((min_dist == -1) || (dist < min_dist)) {
+					min_dist = dist;
+					min_point = actual_p;
+
 				}
 			}
 		}
-		for (let r = 0; r < height; r++) {
-			let first = false;
-			for (let c = Math.floor(width/2) - 1; c >= 0; c--) {
-				let ind = (width * r + c) * 4;
-				if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
-					first = true;
-				} else {
-					imgData.data[ind] = 128;
-					imgData.data[ind + 1] = 128;
-					imgData.data[ind + 2] = 128;
-					imgData.data[ind + 3] = 255;
-				}
-			}
-		}
-		let c = Math.floor(width/2);
-		let first = false;
-		for (let r = Math.floor(height/2) - 1; r >= 0; r--) {
-			let ind = (width * r + c) * 4;
-			if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
-				first = true;
-			} else {
-				imgData.data[ind] = 128;
-				imgData.data[ind + 1] = 128;
-				imgData.data[ind + 2] = 128;
-				imgData.data[ind + 3] = 255;
-			}
-		}
-		first = false;
-		for (let r = Math.floor(height/2) + 1; r < height; r++) {
-			let ind = (width * r + c) * 4;
-			if(!first && imgData.data[ind] < 100 && imgData.data[ind + 1] < 100 && imgData.data[ind + 2] < 100 && imgData.data[ind + 3] == 255){
-				console.log("sound first")
-				first = true;
-			} else {
-				imgData.data[ind] = 128;
-				imgData.data[ind + 1] = 128;
-				imgData.data[ind + 2] = 128;
-				imgData.data[ind + 3] = 255;
-			}
-		}
-		let edges = this.findEdges(imgData);
-		console.log(edges)
-		for(let i = 0; i < edges.length; i++){
-			let ind = imgData[edges[i]];
-			imgData.data[ind] = 255;
-			imgData.data[ind + 1] = 0;
-			imgData.data[ind + 2] = 0;
-			imgData.data[ind + 3] = 255;
-		}
-		return imgData;
+		return min_point;
 	}
 
 	findEdges(imgData){
@@ -1048,6 +1075,18 @@ class Sensor {
 		return points;
 	}
 }
+
+/**
+ * 
+ * @param {number} slope 
+ * @param {Slope} point 
+ */
+function lineFromSlopeAndPoint(slope, point){
+	let c = point.y - slope*point.x;
+	let line = new Line(slope, c);
+	return line;
+}
+
 /**
  * @property {number} radius
  * @property {Bug} bug

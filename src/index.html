@@ -39,6 +39,17 @@
 				<input type="number" id="goaly">
 			</label>
 			<br><br>
+			<label for="obstacleType"> Add Obstacle
+				<select name="obstacleType" id="obstacleType">
+					<option value="Circle">Circle</option>
+					<option value="Rectangle">Rectangle</option>
+				</select>
+			</label>
+			<input type="text" id="obstacleInput">
+			<button id="addObstacleBtn">Add Obstacle</button>
+			<br><br>
+			<button id="clearAllBtn">Remove All Obsacles</button>
+			<br><br>
 			<label for="bugType"> Bug Type
 				<select name="bugType" id="bugType">
 					<option value="Bug 1">Bug 1</option>
@@ -47,9 +58,10 @@
 				</select>
 			</label>
 			<button id="findPathBtn">Find Path</button>
-			<button id="getSnapshotBtn">Get Snapshot</button>
+			<button id="getSnapshotBtn" style="visibility: hidden;">Get Snapshot</button>
 		</div>
 	</div>
 	<script src="main.js"></script>
+	<script src="obstaclehandler.js"></script>
 </body>
 </html>
